@@ -1,22 +1,44 @@
----
+version: '3.8'
+
 services:
-  s-ui:
-    image: alireza7/s-ui
-    container_name: s-ui
-    hostname: "s-ui"
+  mysql:
+    image: mysql:8.0
+    container_name: sui-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: asd123456
+      MYSQL_DATABASE: sui
+      MYSQL_USER: sui
+      MYSQL_PASSWORD: sui123456
+    ports:
+      - "3306:3306"
     volumes:
-      - "./db:/app/db"
-      - "./cert:/app/cert"
-    tty: true
-    restart: unless-stopped
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - sui-network
+
+  sui:
+    build: .
+    container_name: sui-app
     ports:
       - "2095:2095"
       - "2096:2096"
+    environment:
+      SUI_DB_TYPE: mysql
+      SUI_DB_HOST: mysql
+      SUI_DB_PORT: 3306
+      SUI_DB_USER: sui
+      SUI_DB_PASSWORD: sui123456
+      SUI_DB_NAME: sui
+    depends_on:
+      - mysql
     networks:
-      - s-ui
-    entrypoint: "./entrypoint.sh"
+      - sui-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
 
 networks:
-  s-ui:
+  sui-network:
     driver: bridge
-  
