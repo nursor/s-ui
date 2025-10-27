@@ -224,13 +224,14 @@ func (s *ClientService) UpdateClientsOnInboundAdd(tx *gorm.DB, initIds string, i
 func (s *ClientService) UpdateClientsOnInboundDelete(tx *gorm.DB, id uint, tag string) error {
 	var clients []model.Client
 	var err error
+	tableName := database.GetTableName("clients")
 	if database.IsMySQL() {
-		err = tx.Table("clients").
-			Where("JSON_CONTAINS(CAST(clients.inbounds AS JSON), ?)", id).
+		err = tx.Table(tableName).
+			Where("JSON_CONTAINS(CAST("+tableName+".inbounds AS JSON), ?)", id).
 			Find(&clients).Error
 	} else {
-		err = tx.Table("clients").
-			Where("EXISTS (SELECT 1 FROM json_each(clients.inbounds) WHERE json_each.value = ?)", id).
+		err = tx.Table(tableName).
+			Where("EXISTS (SELECT 1 FROM json_each("+tableName+".inbounds) WHERE json_each.value = ?)", id).
 			Find(&clients).Error
 	}
 	if err != nil {
@@ -273,13 +274,14 @@ func (s *ClientService) UpdateLinksByInboundChange(tx *gorm.DB, inbounds *[]mode
 	var err error
 	for _, inbound := range *inbounds {
 		var clients []model.Client
+		tableName := database.GetTableName("clients")
 		if database.IsMySQL() {
-			err = tx.Table("clients").
-				Where("JSON_CONTAINS(CAST(clients.inbounds AS JSON), ?)", inbound.Id).
+			err = tx.Table(tableName).
+				Where("JSON_CONTAINS(CAST("+tableName+".inbounds AS JSON), ?)", inbound.Id).
 				Find(&clients).Error
 		} else {
-			err = tx.Table("clients").
-				Where("EXISTS (SELECT 1 FROM json_each(clients.inbounds) WHERE json_each.value = ?)", inbound.Id).
+			err = tx.Table(tableName).
+				Where("EXISTS (SELECT 1 FROM json_each("+tableName+".inbounds) WHERE json_each.value = ?)", inbound.Id).
 				Find(&clients).Error
 		}
 		if err != nil {

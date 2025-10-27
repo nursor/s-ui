@@ -124,7 +124,8 @@ func (s *UserService) LoadTokens() ([]byte, error) {
 func (s *UserService) GetUserTokens(username string) (*[]model.Tokens, error) {
 	db := database.GetDB()
 	var token []model.Tokens
-	err := db.Model(model.Tokens{}).Select("id,s_desc,'****' as token,expiry,user_id").Where("user_id = (select id from users where username = ?)", username).Find(&token).Error
+	usersTableName := database.GetTableName("users")
+	err := db.Model(model.Tokens{}).Select("id,s_desc,'****' as token,expiry,user_id").Where("user_id = (select id from "+usersTableName+" where username = ?)", username).Find(&token).Error
 	if err != nil && !database.IsNotFound(err) {
 		println(err.Error())
 		return nil, err

@@ -83,7 +83,8 @@ func (s *InboundService) GetAll() (*[]map[string]interface{}, error) {
 				candidateStr := fmt.Sprintf(`{"id":%d}`, inbound.Id)
 				err = db.Where("JSON_CONTAINS(inbounds, ?)", candidateStr).Model(&model.Client{}).Pluck("name", &users).Error
 			} else {
-				err = db.Raw("SELECT clients.name FROM clients, json_each(clients.inbounds) as je WHERE je.value = ?", inbound.Id).Scan(&users).Error
+				tableName := database.GetTableName("Client")
+				err = db.Raw("SELECT "+tableName+".name FROM "+tableName+", json_each("+tableName+".inbounds) as je WHERE je.value = ?", inbound.Id).Scan(&users).Error
 			}
 			if err != nil {
 				return nil, err
@@ -273,12 +274,13 @@ func (s *InboundService) fetchUsers(db *gorm.DB, inboundType string, condition s
 	var users []string
 
 	var query string
+	tableName := database.GetTableName("clients")
 	if database.IsMySQL() {
-		query = fmt.Sprintf(`SELECT JSON_EXTRACT(clients.config, "$.%s")
-		FROM clients WHERE enable = true AND %s AND clients.config IS NOT NULL`, inboundType, condition)
+		query = fmt.Sprintf(`SELECT JSON_EXTRACT(%s.config, "$.%s")
+		FROM %s WHERE enable = true AND %s AND %s.config IS NOT NULL`, tableName, inboundType, tableName, condition, tableName)
 	} else {
-		query = fmt.Sprintf(`SELECT json_extract(clients.config, "$.%s")
-		FROM clients WHERE enable = true AND %s AND clients.config IS NOT NULL`, inboundType, condition)
+		query = fmt.Sprintf(`SELECT json_extract(%s.config, "$.%s")
+		FROM %s WHERE enable = true AND %s AND %s.config IS NOT NULL`, tableName, inboundType, tableName, condition, tableName)
 	}
 	err := db.Raw(query).Scan(&users).Error
 	if err != nil {
@@ -306,11 +308,12 @@ func (s *InboundService) addUsers(db *gorm.DB, inboundJson []byte, inboundId uin
 	}
 
 	var condition string
+	tableName := database.GetTableName("clients")
 	if database.IsMySQL() {
 		// 使用CAST和JSON_CONTAINS来避免JSON_TABLE的二进制数据问题
-		condition = fmt.Sprintf("JSON_CONTAINS(CAST(clients.inbounds AS JSON), '%d')", inboundId)
+		condition = fmt.Sprintf("JSON_CONTAINS(CAST(%s.inbounds AS JSON), '%d')", tableName, inboundId)
 	} else {
-		condition = fmt.Sprintf("%d IN (SELECT json_each.value FROM json_each(clients.inbounds))", inboundId)
+		condition = fmt.Sprintf("%d IN (SELECT json_each.value FROM json_each(%s.inbounds))", inboundId, tableName)
 	}
 	inbound["users"], err = s.fetchUsers(db, inboundType, condition, inbound)
 	if err != nil {
