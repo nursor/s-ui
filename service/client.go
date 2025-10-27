@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -271,14 +272,17 @@ func (s *ClientService) UpdateClientsOnInboundDelete(tx *gorm.DB, id uint, tag s
 }
 
 func (s *ClientService) UpdateLinksByInboundChange(tx *gorm.DB, inbounds *[]model.Inbound, hostname string, oldTag string) error {
+	db := database.GetDB()
 	var err error
 	for _, inbound := range *inbounds {
 		var clients []model.Client
 		tableName := database.GetTableName("clients")
 		if database.IsMySQL() {
-			err = tx.Table(tableName).
-				Where("JSON_CONTAINS(CAST("+tableName+".inbounds AS JSON), ?)", inbound.Id).
-				Find(&clients).Error
+			//err = tx.Table(tableName).
+			//	Where("JSON_CONTAINS(CAST("+tableName+".inbounds AS JSON), ?)", inbound.Id).
+			//	Find(&clients).Error
+			candidateStr := fmt.Sprintf(`{"id":%d}`, inbound.Id)
+			err = db.Where("JSON_CONTAINS(inbounds, ?)", candidateStr).Model(&clients).Error
 		} else {
 			err = tx.Table(tableName).
 				Where("EXISTS (SELECT 1 FROM json_each("+tableName+".inbounds) WHERE json_each.value = ?)", inbound.Id).
