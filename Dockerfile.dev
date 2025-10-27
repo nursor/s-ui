@@ -1,0 +1,27 @@
+FROM golang:1.25-alpine
+WORKDIR /app
+ARG TARGETARCH
+
+ENV SUI_DB_TYPE=mysql
+ENV SUI_DB_HOST=172.16.238.2
+ENV SUI_DB_PORT=30409
+ENV SUI_DB_USER=root
+ENV SUI_DB_PASSWORD=asd123456
+ENV SUI_DB_NAME=sui
+
+
+RUN apk update && apk add --no-cache \
+    gcc \
+    musl-dev \
+    libc-dev \
+    make \
+    git \
+    wget \
+    unzip \
+    bash
+
+ENV CC=gcc
+
+COPY . .
+
+

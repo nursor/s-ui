@@ -159,7 +159,8 @@ func (j *JsonService) getOutbounds(clientConfig json.RawMessage, inbounds []*mod
 		} else { // Other protocols
 			config, _ := configs[protocol].(map[string]interface{})
 			for key, value := range config {
-				if key == "name" || key == "alterId" || (key == "flow" && inData.TlsId == 0) {
+				// Fix: compare inData.TlsId correctly since it is *uint
+				if key == "name" || key == "alterId" || (key == "flow" && (inData.TlsId == nil || *inData.TlsId == 0)) {
 					continue
 				}
 				outbound[key] = value

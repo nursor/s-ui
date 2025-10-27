@@ -105,7 +105,7 @@ func (s *UserService) ChangePass(id string, oldPass string, newUser string, newP
 func (s *UserService) LoadTokens() ([]byte, error) {
 	db := database.GetDB()
 	var tokens []model.Tokens
-	err := db.Model(model.Tokens{}).Preload("User").Where("expiry == 0 or expiry > ?", time.Now().Unix()).Find(&tokens).Error
+	err := db.Model(model.Tokens{}).Preload("User").Where("expiry = 0 or expiry > ?", time.Now().Unix()).Find(&tokens).Error
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (s *UserService) LoadTokens() ([]byte, error) {
 func (s *UserService) GetUserTokens(username string) (*[]model.Tokens, error) {
 	db := database.GetDB()
 	var token []model.Tokens
-	err := db.Model(model.Tokens{}).Select("id,desc,'****' as token,expiry,user_id").Where("user_id = (select id from users where username = ?)", username).Find(&token).Error
+	err := db.Model(model.Tokens{}).Select("id,s_desc,'****' as token,expiry,user_id").Where("user_id = (select id from users where username = ?)", username).Find(&token).Error
 	if err != nil && !database.IsNotFound(err) {
 		println(err.Error())
 		return nil, err

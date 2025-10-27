@@ -255,3 +255,8 @@ certbot certonly --standalone --register-unsafely-without-email --non-interactiv
 
 ## Stargazers over Time
 [![Stargazers over time](https://starchart.cc/alireza0/s-ui.svg)](https://starchart.cc/alireza0/s-ui)
+
+
+```
+go build -ldflags="-w -s" -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" -o sui main.go
+```

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -57,12 +58,20 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 
 	// Load the HTML template
 	t := template.New("").Funcs(engine.FuncMap)
-	template, err := t.ParseFS(content, "html/index.html")
-	if err != nil {
-		return nil, err
+	var template *template.Template
+	var err error
+	if config.IsDebug() {
+		template, err = t.ParseFS(os.DirFS("/Users/mac/MyProgram/GoProgram/nursor/sui/frontend/dist/"), "index.html")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		template, err = t.ParseFS(content, "html/index.html")
+		if err != nil {
+			return nil, err
+		}
 	}
 	engine.SetHTMLTemplate(template)
-
 	base_url, err := s.settingService.GetWebPath()
 	if err != nil {
 		return nil, err
@@ -96,11 +105,18 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	})
 
 	// Serve the assets folder
-	assetsFS, err := fs.Sub(content, "html/assets")
-	if err != nil {
-		panic(err)
+	var assetsFS fs.FS
+	if config.IsDebug() {
+		assetsFS, err = fs.Sub(os.DirFS("/Users/mac/MyProgram/GoProgram/nursor/sui/frontend/dist/"), "assets")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		assetsFS, err = fs.Sub(content, "html/assets")
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	engine.StaticFS(assetsBasePath, http.FS(assetsFS))
 
 	group_apiv2 := engine.Group(base_url + "apiv2")

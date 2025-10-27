@@ -80,7 +80,11 @@ func (s *EndpointService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 				}
 			} else {
 				var old_license string
-				err = tx.Model(model.Endpoint{}).Select("json_extract(ext, '$.license_key')").Where("id = ?", endpoint.Id).Find(&old_license).Error
+				if database.IsMySQL() {
+					err = tx.Model(model.Endpoint{}).Select("JSON_EXTRACT(ext, '$.license_key')").Where("id = ?", endpoint.Id).Find(&old_license).Error
+				} else {
+					err = tx.Model(model.Endpoint{}).Select("json_extract(ext, '$.license_key')").Where("id = ?", endpoint.Id).Find(&old_license).Error
+				}
 				if err != nil {
 					return err
 				}

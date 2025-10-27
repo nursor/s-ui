@@ -71,8 +71,8 @@ func (s *ServicesService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 			return err
 		}
 
-		if srv.TlsId > 0 {
-			err = tx.Model(model.Tls{}).Where("id = ?", srv.TlsId).Find(&srv.Tls).Error
+		if srv.TlsId != nil && *srv.TlsId > 0 {
+			err = tx.Model(model.Tls{}).Where("id = ?", *srv.TlsId).Find(&srv.Tls).Error
 			if err != nil {
 				return err
 			}

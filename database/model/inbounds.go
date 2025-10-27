@@ -6,16 +6,16 @@ import (
 
 type Inbound struct {
 	Id   uint   `json:"id" form:"id" gorm:"primaryKey;autoIncrement"`
-	Type string `json:"type" form:"type"`
+	Type string `json:"type" form:"type" gorm:"column:s_type"`
 	Tag  string `json:"tag" form:"tag" gorm:"unique"`
 
 	// Foreign key to tls table
-	TlsId uint `json:"tls_id" form:"tls_id"`
-	Tls   *Tls `json:"tls" form:"tls" gorm:"foreignKey:TlsId;references:Id"`
+	TlsId *uint `json:"tls_id" form:"tls_id"`
+	Tls   *Tls  `json:"tls" form:"tls" gorm:"foreignKey:TlsId;references:Id;constraint:OnDelete:SET NULL;OnUpdate:CASCADE"`
 
 	Addrs   json.RawMessage `json:"addrs" form:"addrs"`
-	OutJson json.RawMessage `json:"out_json" form:"out_json"`
-	Options json.RawMessage `json:"-" form:"-"`
+	OutJson json.RawMessage `json:"out_json" form:"out_json" gorm:"type:json"`
+	Options json.RawMessage `json:"-" form:"-" gorm:"type:json"`
 }
 
 func (i *Inbound) UnmarshalJSON(data []byte) error {
@@ -36,8 +36,9 @@ func (i *Inbound) UnmarshalJSON(data []byte) error {
 	delete(raw, "tag")
 
 	// TlsId
-	if val, exists := raw["tls_id"].(float64); exists {
-		i.TlsId = uint(val)
+	if val, exists := raw["tls_id"].(float64); exists && val > 0 {
+		tlsId := uint(val)
+		i.TlsId = &tlsId
 	}
 	delete(raw, "tls_id")
 	delete(raw, "tls")

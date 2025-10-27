@@ -20,7 +20,7 @@ func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname stri
 	}
 
 	var tls map[string]interface{}
-	if i.TlsId > 0 {
+	if i.TlsId != nil && *i.TlsId > 0 {
 		tls = prepareTls(i.Tls)
 	}
 
@@ -37,14 +37,14 @@ func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname stri
 			"server_port": (*inbound)["listen_port"],
 			"remark":      i.Tag,
 		})
-		if i.TlsId > 0 {
+		if i.TlsId != nil && *i.TlsId > 0 {
 			Addrs[0]["tls"] = tls
 		}
 	} else {
 		for index, addr := range Addrs {
 			addrRemark, _ := addr["remark"].(string)
 			Addrs[index]["remark"] = i.Tag + addrRemark
-			if i.TlsId > 0 {
+			if i.TlsId != nil && *i.TlsId > 0 {
 				newTls := map[string]interface{}{}
 				for k, v := range tls {
 					newTls[k] = v

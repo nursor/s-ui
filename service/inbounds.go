@@ -78,7 +78,13 @@ func (s *InboundService) GetAll() (*[]map[string]interface{}, error) {
 			!(inbound.Type == "shadowtls" && shadowtls_version < 3) &&
 			!(inbound.Type == "shadowsocks" && ss_managed) {
 			users := []string{}
-			err = db.Raw("SELECT clients.name FROM clients, json_each(clients.inbounds) as je WHERE je.value = ?", inbound.Id).Scan(&users).Error
+			if database.IsMySQL() {
+				//err = db.Raw("SELECT clients.name FROM clients WHERE JSON_CONTAINS(clients.inbounds, '')", inbound.Id).Scan(&users).Error
+				candidateStr := fmt.Sprintf(`{"id":%d}`, inbound.Id)
+				err = db.Where("JSON_CONTAINS(inbounds, ?)", candidateStr).Model(&model.Client{}).Pluck("name", &users).Error
+			} else {
+				err = db.Raw("SELECT clients.name FROM clients, json_each(clients.inbounds) as je WHERE je.value = ?", inbound.Id).Scan(&users).Error
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -110,8 +116,8 @@ func (s *InboundService) Save(tx *gorm.DB, act string, data json.RawMessage, ini
 		if err != nil {
 			return err
 		}
-		if inbound.TlsId > 0 {
-			err = tx.Model(model.Tls{}).Where("id = ?", inbound.TlsId).Find(&inbound.Tls).Error
+		if inbound.TlsId != nil && *inbound.TlsId > 0 {
+			err = tx.Model(model.Tls{}).Where("id = ?", *inbound.TlsId).Find(&inbound.Tls).Error
 			if err != nil {
 				return err
 			}
@@ -266,10 +272,15 @@ func (s *InboundService) fetchUsers(db *gorm.DB, inboundType string, condition s
 
 	var users []string
 
-	err := db.Raw(
-		fmt.Sprintf(`SELECT json_extract(clients.config, "$.%s")
-		FROM clients WHERE enable = true AND %s`,
-			inboundType, condition)).Scan(&users).Error
+	var query string
+	if database.IsMySQL() {
+		query = fmt.Sprintf(`SELECT JSON_EXTRACT(clients.config, "$.%s")
+		FROM clients WHERE enable = true AND %s AND clients.config IS NOT NULL`, inboundType, condition)
+	} else {
+		query = fmt.Sprintf(`SELECT json_extract(clients.config, "$.%s")
+		FROM clients WHERE enable = true AND %s AND clients.config IS NOT NULL`, inboundType, condition)
+	}
+	err := db.Raw(query).Scan(&users).Error
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +305,13 @@ func (s *InboundService) addUsers(db *gorm.DB, inboundJson []byte, inboundId uin
 		return nil, err
 	}
 
-	condition := fmt.Sprintf("%d IN (SELECT json_each.value FROM json_each(clients.inbounds))", inboundId)
+	var condition string
+	if database.IsMySQL() {
+		// 使用CAST和JSON_CONTAINS来避免JSON_TABLE的二进制数据问题
+		condition = fmt.Sprintf("JSON_CONTAINS(CAST(clients.inbounds AS JSON), '%d')", inboundId)
+	} else {
+		condition = fmt.Sprintf("%d IN (SELECT json_each.value FROM json_each(clients.inbounds))", inboundId)
+	}
 	inbound["users"], err = s.fetchUsers(db, inboundType, condition, inbound)
 	if err != nil {
 		return nil, err
@@ -304,6 +321,11 @@ func (s *InboundService) addUsers(db *gorm.DB, inboundJson []byte, inboundId uin
 }
 
 func (s *InboundService) initUsers(db *gorm.DB, inboundJson []byte, clientIds string, inboundType string) ([]byte, error) {
+	// 检查是否为空字符串
+	if clientIds == "" {
+		return inboundJson, nil
+	}
+
 	ClientIds := strings.Split(clientIds, ",")
 	if len(ClientIds) == 0 {
 		return inboundJson, nil
@@ -319,7 +341,12 @@ func (s *InboundService) initUsers(db *gorm.DB, inboundJson []byte, clientIds st
 		return nil, err
 	}
 
-	condition := fmt.Sprintf("id IN (%s)", strings.Join(ClientIds, ","))
+	var condition string
+	if len(ClientIds) > 0 && ClientIds[0] != "" {
+		condition = fmt.Sprintf("id IN (%s)", strings.Join(ClientIds, ","))
+	} else {
+		condition = "1 = 0" // 返回空结果的条件
+	}
 	inbound["users"], err = s.fetchUsers(db, inboundType, condition, inbound)
 	if err != nil {
 		return nil, err
