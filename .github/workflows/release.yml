@@ -53,8 +53,6 @@ jobs:
           "linux/arm64"
           "linux/arm/v7"
           "windows/amd64"
-          "darwin/amd64"
-          "darwin/arm64"
         )
         
         for platform in "${platforms[@]}"; do

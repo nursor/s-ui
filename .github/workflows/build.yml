@@ -1,20 +1,30 @@
-name: Build and Release
+name: Build Binaries
 
 on:
   push:
     branches: [ feat/liang ]
     tags: [ 'v*' ]
-  pull_request:
-    branches: [ feat/liang ]
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.25'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            variant: ""
+          - os: linux
+            arch: arm64
+            variant: ""
+          - os: windows
+            arch: amd64
+            variant: ""
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -40,6 +50,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y gcc musl-dev libc-dev make git wget unzip
+        # Install cross-compilation tools for Windows
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+        fi
 
     - name: Build frontend
       run: |
@@ -50,122 +64,56 @@ jobs:
         mv frontend/dist web/html
         rm -fr frontend
 
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            arch: amd64
-            variant: ""
-          - platform: linux/arm64
-            arch: arm64
-            variant: ""
-          - platform: linux/arm/v7
-            arch: arm
-            variant: "v7"
-          - platform: linux/arm/v6
-            arch: arm
-            variant: "v6"
+    - name: Build binary
+      run: |
+        mkdir -p dist
+        
+        output_name="sui-${{ matrix.os }}-${{ matrix.arch }}"
+        if [ -n "${{ matrix.variant }}" ]; then
+          output_name="${output_name}-${{ matrix.variant }}"
+        fi
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          output_name="${output_name}.exe"
+        fi
+        
+        echo "Building for ${{ matrix.os }}/${{ matrix.arch }} -> $output_name"
+        
+        # Set environment variables for cross-compilation
+        export GOOS=${{ matrix.os }}
+        export GOARCH=${{ matrix.arch }}
+        export CGO_ENABLED=1
+        
+        # Set compiler for Windows cross-compilation
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          export CC=x86_64-w64-mingw32-gcc
+        fi
+        
+        go build \
+          -ldflags="-w -s" \
+          -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" \
+          -o "dist/$output_name" main.go
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        submodules: recursive
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=${{ matrix.arch }},enable={{is_default_branch}}
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: ${{ matrix.platform }}
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        build-args: |
-          TARGETARCH=${{ matrix.arch }}
-          TARGETVARIANT=${{ matrix.variant }}
+        name: sui-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
+        path: dist/
 
   release:
-    needs: [test, build]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
       with:
-        submodules: recursive
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc musl-dev libc-dev make git wget unzip
-
-    - name: Build binaries
-      run: |
-        # Build for multiple platforms
-        platforms=(
-          "linux/amd64"
-          "linux/arm64"
-          "linux/arm/v7"
-          "windows/amd64"
-          "darwin/amd64"
-          "darwin/arm64"
-        )
-        
-        for platform in "${platforms[@]}"; do
-          IFS='/' read -r os arch variant <<< "$platform"
-          output_name="sui-${os}-${arch}"
-          if [ -n "$variant" ]; then
-            output_name="${output_name}-${variant}"
-          fi
-          if [ "$os" = "windows" ]; then
-            output_name="${output_name}.exe"
-          fi
-          
-          echo "Building for $platform -> $output_name"
-          GOOS=$os GOARCH=$arch CGO_ENABLED=1 go build \
-            -ldflags="-w -s" \
-            -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" \
-            -o "dist/$output_name" main.go
-        done
+        path: dist/
 
     - name: Create checksums
       run: |
         cd dist
-        sha256sum * > checksums.txt
+        find . -name "*.exe" -o -name "sui-*" | xargs sha256sum > checksums.txt
+        ls -la
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -174,5 +122,6 @@ jobs:
           dist/*
         draft: false
         prerelease: false
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
