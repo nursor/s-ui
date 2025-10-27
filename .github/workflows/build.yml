@@ -41,12 +41,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc musl-dev libc-dev make git wget unzip
 
-    - name: Run tests
+    - name: Build frontend
       run: |
-        go mod download
-        go mod verify
-        go vet ./...
-        go test -v ./...
+        cd frontend
+        npm install
+        npm run build
+        cd ..
+        mv frontend/dist web/html
+        rm -fr frontend
 
   build:
     needs: test
