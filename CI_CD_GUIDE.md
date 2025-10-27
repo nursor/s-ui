@@ -21,13 +21,23 @@
 - 校验和文件
 - 自动创建 GitHub Release (仅标签触发时)
 
-## 2. `.github/workflows/docker.yml` - Docker 镜像构建
+## 2. `.github/workflows/docker.yml` - Docker 镜像构建 (GitHub Container Registry)
 
 **用途**: 构建和推送 Docker 镜像到 GitHub Container Registry
 
 **触发条件**:
-- 推送到 `feat/liang` 分支
 - 创建标签 (如 `v1.0.0`)
+
+## 3. `.github/workflows/docker-hub.yml` - Docker 镜像构建 (Docker Hub)
+
+**用途**: 构建和推送 Docker 镜像到 Docker Hub
+
+**触发条件**:
+- 创建标签 (如 `v1.0.0`)
+
+**需要配置**:
+- `DOCKERHUB_USERNAME`: Docker Hub 用户名
+- `DOCKERHUB_TOKEN`: Docker Hub 访问令牌
 
 **构建平台**:
 - linux/amd64
