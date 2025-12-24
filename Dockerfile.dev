@@ -18,9 +18,33 @@ RUN apk update && apk add --no-cache \
     git \
     wget \
     unzip \
-    bash
+    bash \
+    nginx
+
+# 安装nginx-mod-stream模块（支持stream和ssl_preread）
+# 如果主仓库没有，尝试从edge仓库安装
+RUN apk add --no-cache nginx-mod-stream 2>/dev/null || \
+    apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main nginx-mod-stream || \
+    (echo "错误: 无法安装nginx-mod-stream模块" && exit 1)
+
+# 验证stream模块文件是否存在
+RUN if [ ! -f /usr/lib/nginx/modules/ngx_stream_module.so ]; then \
+        echo "警告: stream模块文件不存在，检查其他可能的位置..."; \
+        find /usr -name "*stream*.so" 2>/dev/null || echo "未找到stream模块"; \
+    else \
+        echo "✓ stream模块已安装: /usr/lib/nginx/modules/ngx_stream_module.so"; \
+    fi
 
 ENV CC=gcc
+
+# 复制nginx配置文件
+COPY nginx-main.conf /etc/nginx/nginx.conf
+COPY nginx.conf /app/nginx.conf
+
+# 创建nginx日志目录
+RUN mkdir -p /var/log/nginx && \
+    # 验证nginx配置（如果stream模块可用）
+    nginx -t 2>&1 || echo "注意: nginx配置测试失败，可能需要检查stream模块是否已加载"
 
 COPY . .
 

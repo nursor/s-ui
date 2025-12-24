@@ -35,6 +35,7 @@ type Client struct {
 	Up       int64           `json:"up" form:"up"`
 	Desc     string          `json:"desc" form:"desc" gorm:"column:s_desc"`
 	Group    string          `json:"group" form:"group" gorm:"column:s_group"`
+	Tag      string          `json:"tag" form:"tag" gorm:"column:s_tag"`
 }
 
 type Stats struct {
