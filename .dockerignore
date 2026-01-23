@@ -22,3 +22,8 @@ tmp
 # Editor directories and files
 .idea
 .vscode
+
+# 排除前端依赖和构建产物
+frontend-src/node_modules
+frontend-src/dist
+frontend-src/.cache

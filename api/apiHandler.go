@@ -56,6 +56,19 @@ func (a *APIHandler) postHandler(c *gin.Context) {
 	case "deleteToken":
 		a.ApiService.DeleteToken(c)
 		a.apiv2.ReloadTokens()
+	// FRP相关
+	case "save_frp_server":
+		a.ApiService.SaveFrpServer(c, loginUser)
+	case "start_frp":
+		a.ApiService.StartFrpServer(c, loginUser)
+	case "stop_frp":
+		a.ApiService.StopFrpServer(c, loginUser)
+	case "restart_frp":
+		a.ApiService.RestartFrpServer(c, loginUser)
+	case "save_frp_proxy":
+		a.ApiService.SaveFrpProxy(c, loginUser)
+	case "download_frp":
+		a.ApiService.DownloadFrp(c, loginUser)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}
@@ -95,6 +108,17 @@ func (a *APIHandler) getHandler(c *gin.Context) {
 		a.ApiService.GetDb(c)
 	case "tokens":
 		a.ApiService.GetTokens(c)
+	// FRP相关
+	case "frp_servers":
+		a.ApiService.GetFrpServers(c)
+	case "frp_server":
+		a.ApiService.GetFrpServer(c)
+	case "frp_server_status":
+		a.ApiService.GetFrpServerStatus(c)
+	case "frp_status":
+		a.ApiService.GetFrpServerStatus(c)
+	case "frp_logs":
+		a.ApiService.GetFrpLogs(c)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}

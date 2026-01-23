@@ -4,7 +4,7 @@
 set -e
 
 IMAGE_NAME="${1:-register.liang.home/library/anydoor:v1.0.0}"
-PLATFORM="linux/amd64"
+PLATFORM="linux/arm64"
 
 echo "=========================================="
 echo "Docker镜像构建脚本"

@@ -66,3 +66,35 @@ func GetDBFolderPath() string {
 func GetDBPath() string {
 	return fmt.Sprintf("%s/%s.db", GetDBFolderPath(), GetName())
 }
+
+// GetDBDir returns the database directory path
+func GetDBDir() string {
+	return GetDBFolderPath()
+}
+
+// GetFrpBinDir returns the FRP binary directory
+func GetFrpBinDir() string {
+	dir := os.Getenv("SUI_FRP_BIN_DIR")
+	if dir == "" {
+		dir = filepath.Join(GetDBFolderPath(), "frp", "bin")
+	}
+	return dir
+}
+
+// GetFrpConfigDir returns the FRP configuration directory
+func GetFrpConfigDir() string {
+	dir := os.Getenv("SUI_FRP_CONFIG_DIR")
+	if dir == "" {
+		dir = filepath.Join(GetDBFolderPath(), "frp", "config")
+	}
+	return dir
+}
+
+// GetFrpLogDir returns the FRP log directory
+func GetFrpLogDir() string {
+	dir := os.Getenv("SUI_FRP_LOG_DIR")
+	if dir == "" {
+		dir = filepath.Join(GetDBFolderPath(), "frp", "logs")
+	}
+	return dir
+}

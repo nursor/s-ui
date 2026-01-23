@@ -153,6 +153,9 @@ func InitDB(dbPath string) error {
 		&model.Stats{},
 		&model.Client{},
 		&model.Changes{},
+		&model.FrpServer{},
+		&model.FrpProxy{},
+		&model.FrpLog{},
 	)
 	if err != nil {
 		return err

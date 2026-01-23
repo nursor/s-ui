@@ -61,7 +61,12 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	var template *template.Template
 	var err error
 	if config.IsDebug() {
-		template, err = t.ParseFS(os.DirFS("/Users/mac/MyProgram/GoProgram/nursor/sui/frontend/dist/"), "index.html")
+		// Debug模式：使用环境变量或默认路径
+		frontendPath := os.Getenv("FRONTEND_DIST_PATH")
+		if frontendPath == "" {
+			frontendPath = "./frontend-src/dist"
+		}
+		template, err = t.ParseFS(os.DirFS(frontendPath), "index.html")
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +112,12 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	// Serve the assets folder
 	var assetsFS fs.FS
 	if config.IsDebug() {
-		assetsFS, err = fs.Sub(os.DirFS("/Users/mac/MyProgram/GoProgram/nursor/sui/frontend/dist/"), "assets")
+		// Debug模式：使用环境变量或默认路径
+		frontendPath := os.Getenv("FRONTEND_DIST_PATH")
+		if frontendPath == "" {
+			frontendPath = "./frontend-src/dist"
+		}
+		assetsFS, err = fs.Sub(os.DirFS(frontendPath), "assets")
 		if err != nil {
 			return nil, err
 		}

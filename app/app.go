@@ -7,6 +7,7 @@ import (
 	"github.com/alireza0/s-ui/core"
 	"github.com/alireza0/s-ui/cronjob"
 	"github.com/alireza0/s-ui/database"
+	"github.com/alireza0/s-ui/frp"
 	"github.com/alireza0/s-ui/logger"
 	"github.com/alireza0/s-ui/service"
 	"github.com/alireza0/s-ui/sub"
@@ -23,6 +24,8 @@ type APP struct {
 	cronJob       *cronjob.CronJob
 	logger        *logging.Logger
 	core          *core.Core
+	frpService    *service.FrpService
+	frpManager    *frp.FrpManager
 }
 
 func NewApp() *APP {
@@ -49,6 +52,12 @@ func (a *APP) Init() error {
 	a.subServer = sub.NewServer()
 
 	a.configService = service.NewConfigService(a.core)
+
+	// 初始化FRP服务和FRP管理器
+	a.frpManager = frp.NewFrpManager()
+	a.frpService = service.NewFrpService()
+
+	logger.Info("FRP管理器已初始化")
 
 	return nil
 }
@@ -100,6 +109,13 @@ func (a *APP) Stop() {
 	err = a.configService.StopCore()
 	if err != nil {
 		logger.Warning("stop Core err:", err)
+	}
+
+	// 关闭FRP管理器
+	if a.frpManager != nil {
+		logger.Info("正在关闭FRP管理器...")
+		a.frpManager.Shutdown()
+		logger.Info("FRP管理器已关闭")
 	}
 }
 

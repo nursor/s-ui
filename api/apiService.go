@@ -26,6 +26,7 @@ type ApiService struct {
 	service.PanelService
 	service.StatsService
 	service.ServerService
+	service.FrpService
 }
 
 func (a *ApiService) LoadData(c *gin.Context) {

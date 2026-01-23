@@ -49,6 +49,7 @@ func GetDb(exclude string) ([]byte, error) {
 		&model.Tls{},
 		&model.Inbound{},
 		&model.Outbound{},
+		&model.Service{},
 		&model.Endpoint{},
 		&model.User{},
 		&model.Stats{},
@@ -63,6 +64,7 @@ func GetDb(exclude string) ([]byte, error) {
 	var tls []model.Tls
 	var inbound []model.Inbound
 	var outbound []model.Outbound
+	var services []model.Service
 	var endpoint []model.Endpoint
 	var users []model.User
 	var clients []model.Client
@@ -95,6 +97,13 @@ func GetDb(exclude string) ([]byte, error) {
 		return nil, err
 	} else if len(outbound) > 0 {
 		if err := backupDb.Save(outbound).Error; err != nil {
+			return nil, err
+		}
+	}
+	if err := db.Model(&model.Service{}).Scan(&services).Error; err != nil {
+		return nil, err
+	} else if len(services) > 0 {
+		if err := backupDb.Save(services).Error; err != nil {
 			return nil, err
 		}
 	}
