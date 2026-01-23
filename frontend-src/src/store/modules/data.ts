@@ -85,6 +85,23 @@ const Data = defineStore('Data', {
       }
       return msg.success
     },
+    // 保存FRP服务器配置
+    async saveFrpServer (action: string, data: any): Promise<boolean> {
+      let postData = {
+        action: action,
+        data: JSON.stringify(data, null, 2)
+      }
+      const msg = await HttpUtils.post('api/save_frp_server', postData)
+      if (msg.success) {
+        push.success({
+          title: i18n.global.t('success'),
+          duration: 5000,
+          message: i18n.global.t('actions.' + action) + " FRP服务器"
+        })
+        this.setNewData(msg.obj)
+      }
+      return msg.success
+    },
     // Check duplicate client name
     checkClientName (id: number, newName: string): boolean {
       const oldName = id > 0 ? this.clients.findLast((i: any) => i.id == id)?.name : null

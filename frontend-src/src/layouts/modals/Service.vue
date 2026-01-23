@@ -117,8 +117,17 @@ export default {
 
       // save data
       this.loading = true
-      const success = await Data().save("services", this.$props.id == 0 ? "new" : "edit", this.srv)
-      if (success) this.closeModal()
+
+      // FRP类型使用专用API
+      if (this.srv.type === SrvTypes.FRP) {
+        const success = await Data().saveFrpServer(this.$props.id == 0 ? "new" : "edit", this.srv)
+        if (success) this.closeModal()
+      } else {
+        // 其他服务类型使用通用保存
+        const success = await Data().save("services", this.$props.id == 0 ? "new" : "edit", this.srv)
+        if (success) this.closeModal()
+      }
+
       this.loading = false
     },
   },
