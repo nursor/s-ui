@@ -1,7 +1,12 @@
 package service
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/alireza0/s-ui/database"
 	"github.com/alireza0/s-ui/database/model"
@@ -69,6 +74,19 @@ func (s *FrpService) SaveServer(tx *gorm.DB, action string, data json.RawMessage
 		err = json.Unmarshal(data, &server)
 		if err != nil {
 			return err
+		}
+
+		// 验证必填字段
+		if server.Name == "" {
+			return fmt.Errorf("配置名称不能为空")
+		}
+		if server.Type == "" {
+			return fmt.Errorf("类型不能为空")
+		}
+
+		// 设置默认版本
+		if server.Version == "" {
+			server.Version = frp.DefaultVersion
 		}
 
 		// 如果是编辑，先停止服务器
@@ -149,8 +167,8 @@ func (s *FrpService) StartServer(id uint) error {
 
 	// 更新数据库状态
 	return db.Model(&server).Updates(map[string]interface{}{
-		"status":     "running",
-		"pid":        server.Pid,
+		"status":      "running",
+		"pid":         server.Pid,
 		"last_run_at": server.LastRunAt,
 	}).Error
 }
@@ -195,15 +213,15 @@ func (s *FrpService) GetServerStatus(id uint) (map[string]interface{}, error) {
 	uptime := s.manager.GetUptime(id)
 
 	return map[string]interface{}{
-		"id":       server.Id,
-		"name":     server.Name,
-		"type":     server.Type,
-		"status":   status,
-		"pid":      server.Pid,
-		"uptime":   uptime.Seconds(),
-		"enable":   server.Enable,
-		"version":  server.Version,
-		"arch":     server.Arch,
+		"id":      server.Id,
+		"name":    server.Name,
+		"type":    server.Type,
+		"status":  status,
+		"pid":     server.Pid,
+		"uptime":  uptime.Seconds(),
+		"enable":  server.Enable,
+		"version": server.Version,
+		"arch":    server.Arch,
 	}, nil
 }
 
@@ -273,19 +291,58 @@ func (s *FrpService) DownloadFRP(version string, frpType string) error {
 	return downloader.Download(frpType)
 }
 
-// GetLogs 获取FRP日志（从数据库）
+// GetLogs 获取FRP日志（从文件读取）
 func (s *FrpService) GetLogs(serverId uint, limit int) ([]model.FrpLog, error) {
 	db := database.GetDB()
+	var server model.FrpServer
+	if err := db.Model(model.FrpServer{}).First(&server, serverId).Error; err != nil {
+		return nil, err
+	}
+
+	logPath := filepath.Join(frp.GetFrpLogDir(), fmt.Sprintf("%s.log", server.Name))
+
+	file, err := os.Open(logPath)
+	if err != nil {
+		// 文件不存在视为无日志，返回空列表而不是错误
+		return []model.FrpLog{}, nil
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	// 取最后 limit 行
+	total := len(lines)
+	start := total - limit
+	if start < 0 {
+		start = 0
+	}
+
+	// 构造 FrpLog 对象
 	var logs []model.FrpLog
-	err := db.Model(model.FrpLog{}).
-		Where("server_id = ?", serverId).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&logs).Error
-	return logs, err
+	// 倒序返回，最新的在前面
+	for i := total - 1; i >= start; i-- {
+		logs = append(logs, model.FrpLog{
+			Id:        uint(i + 1),
+			ServerId:  serverId,
+			Message:   lines[i],
+			CreatedAt: time.Now(), // 这里的相关时间暂时无法准确获取
+			Level:     "info",
+		})
+	}
+
+	return logs, nil
 }
 
 // GetLogPath 获取日志文件路径
 func (s *FrpService) GetLogPath(serverId uint) string {
 	return s.manager.GetLogPath(serverId)
+}
+
+// GetRuntimeStatus 获取运行时状态（不查询数据库）
+func (s *FrpService) GetRuntimeStatus(serverId uint) string {
+	return s.manager.GetStatus(serverId)
 }

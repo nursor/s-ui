@@ -87,6 +87,25 @@ func (a *ApiService) getData(c *gin.Context) (interface{}, error) {
 		if err != nil {
 			return "", err
 		}
+
+		// 获取FRP服务器并转换为服务格式添加到列表
+		// 获取FRP服务器并转换为服务格式添加到列表
+		frpServers, _ := a.FrpService.GetAll()
+		for _, frp := range frpServers {
+			// 获取实时状态
+			status := a.FrpService.GetRuntimeStatus(frp.Id)
+
+			// 将FRP服务器转换为前端期望的格式
+			*services = append(*services, map[string]interface{}{
+				"id":     frp.Id,
+				"type":   "frp",
+				"tag":    frp.Name,
+				"mode":   frp.Type, // server 或 client
+				"status": status,
+				"frp_id": frp.Id, // 保存原始FRP ID用于状态查询
+			})
+		}
+
 		subURI, err := a.SettingService.GetFinalSubURI(getHostname(c))
 		if err != nil {
 			return "", err
@@ -141,6 +160,24 @@ func (a *ApiService) LoadPartialData(c *gin.Context, objs []string) error {
 			if err != nil {
 				return err
 			}
+
+			// 获取FRP服务器并转换为服务格式添加到列表 (Partial Reload Fix)
+			// 获取FRP服务器并转换为服务格式添加到列表 (Partial Reload Fix)
+			frpServers, _ := a.FrpService.GetAll()
+			for _, frp := range frpServers {
+				// 获取实时状态
+				status := a.FrpService.GetRuntimeStatus(frp.Id)
+
+				*services = append(*services, map[string]interface{}{
+					"id":     frp.Id,
+					"type":   "frp",
+					"tag":    frp.Name,
+					"mode":   frp.Type,
+					"status": status, // 使用实时状态
+					"frp_id": frp.Id,
+				})
+			}
+
 			data[obj] = services
 		case "tls":
 			tlsConfigs, err := a.TlsService.GetAll()
@@ -304,6 +341,32 @@ func (a *ApiService) Save(c *gin.Context, loginUser string) {
 	act := c.Request.FormValue("action")
 	data := c.Request.FormValue("data")
 	initUsers := c.Request.FormValue("initUsers")
+
+	// FRP Deletion Interception
+	if obj == "services" && act == "del" {
+		var tag string
+		if err := json.Unmarshal([]byte(data), &tag); err == nil {
+			frpServers, _ := a.FrpService.GetAll()
+			for _, server := range frpServers {
+				if server.Name == tag {
+					// Use ID to delete FRP server
+					idJson, _ := json.Marshal(server.Id)
+					err := a.FrpService.SaveServer(database.GetDB(), "del", json.RawMessage(idJson))
+					if err != nil {
+						jsonMsg(c, "delete frp failed", err)
+						return
+					}
+					// Only reload services
+					err = a.LoadPartialData(c, []string{"services"})
+					if err != nil {
+						jsonMsg(c, obj, err)
+					}
+					return
+				}
+			}
+		}
+	}
+
 	objs, err := a.ConfigService.Save(obj, act, json.RawMessage(data), initUsers, loginUser, hostname)
 	if err != nil {
 		jsonMsg(c, "save", err)

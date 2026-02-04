@@ -52,7 +52,12 @@ func (a *ApiService) SaveFrpServer(c *gin.Context, loginUser string) {
 	}
 
 	logger.Infof("用户 %s 保存了FRP服务器配置 action=%s", loginUser, action)
-	jsonMsg(c, "保存成功", nil)
+
+	// 返回更新后的服务列表
+	err = a.LoadPartialData(c, []string{"services"})
+	if err != nil {
+		jsonMsg(c, "保存成功但获取列表失败", err)
+	}
 }
 
 // StartFrpServer 启动FRP服务器
@@ -133,6 +138,9 @@ func (a *ApiService) GetFrpServerStatus(c *gin.Context) {
 // GetFrpLogs 获取FRP日志
 func (a *ApiService) GetFrpLogs(c *gin.Context) {
 	idStr := c.Query("server_id")
+	if idStr == "" {
+		idStr = c.Query("id")
+	}
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		jsonMsg(c, "无效的ID", err)

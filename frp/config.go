@@ -159,8 +159,9 @@ func (g *ConfigGenerator) writeConfig(server *model.FrpServer, config map[string
 		return "", fmt.Errorf("failed to encode TOML: %v", err)
 	}
 
-	// 写入文件
-	filename := fmt.Sprintf("frp_%s_%d.toml", server.Type, server.Id)
+	// 使用配置名作为文件名（清理特殊字符）
+	// 文件名格式: {name}.toml
+	filename := fmt.Sprintf("%s.toml", server.Name)
 	configPath := filepath.Join(g.configDir, filename)
 
 	if err := os.WriteFile(configPath, buf.Bytes(), 0644); err != nil {

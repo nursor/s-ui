@@ -51,6 +51,10 @@ func (s *ServicesService) GetAllConfig(db *gorm.DB) ([]json.RawMessage, error) {
 		return nil, err
 	}
 	for _, srv := range services {
+		// 跳过 FRP 类型的 service（FRP 通过独立的进程管理器管理，不是 sing-box 的 service）
+		if srv.Type == "frp" {
+			continue
+		}
 		srvJson, err := srv.MarshalJSON()
 		if err != nil {
 			return nil, err

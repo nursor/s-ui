@@ -65,8 +65,8 @@
           <v-chip
             v-if="!loading"
             size="x-small"
-            :color="status?.running ? 'success' : 'error'"
-          >{{ status?.running ? $t('running') : $t('stopped') }}</v-chip>
+            :color="status?.status === 'running' ? 'success' : 'error'"
+          >{{ status?.status === 'running' ? $t('running') : $t('stopped') }}</v-chip>
           <v-progress-circular
             v-if="loading"
             indeterminate
@@ -87,7 +87,7 @@
       </v-btn>
 
       <!-- FRP操作按钮 -->
-      <template v-if="status?.running">
+      <template v-if="status?.status === 'running'">
         <v-btn icon="mdi-stop-circle" color="error" @click="stopFRP" size="small">
           <v-icon />
           <v-tooltip activator="parent" location="top" :text="$t('stop')"></v-tooltip>
@@ -115,7 +115,7 @@
       <v-btn
         icon="mdi-file-remove"
         color="warning"
-        @click="$emit('delete', service.id)"
+        @click="showDeleteConfirm = true"
         style="margin-inline-start: auto;"
         size="small"
       >
@@ -140,6 +140,20 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <!-- 删除确认对话框 -->
+    <v-dialog v-model="showDeleteConfirm" max-width="400">
+      <v-card>
+        <v-card-title>{{ $t('actions.del') }}</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>{{ $t('confirm') }}</v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="error" variant="outlined" @click="confirmDelete" :loading="deleteLoading">{{ $t('yes') }}</v-btn>
+          <v-btn color="success" variant="outlined" @click="showDeleteConfirm = false">{{ $t('no') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
@@ -154,7 +168,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: [id: number]
-  delete: [id: number]
 }>()
 
 const loading = ref(false)
@@ -162,25 +175,30 @@ const showLogs = ref(false)
 const logsLoading = ref(false)
 const logs = ref<string[]>([])
 
+// 删除相关
+const showDeleteConfirm = ref(false)
+const deleteLoading = ref(false)
+
 const status = ref<any>(null)
 let statusInterval: ReturnType<typeof setInterval> | null = null
 
 // 加载状态
-const loadStatus = async () => {
-  loading.value = true
+const loadStatus = async (background = false) => {
+  if (!background) loading.value = true
   try {
     const baseURL = (window as any).BASE_URL || '/'
     const resp = await fetch(`${baseURL}api/frp/status?id=${props.service.id}`, {
       credentials: 'include'
     })
     const data = await resp.json()
+    console.log(data);
     if (data.success) {
       status.value = data.obj
     }
   } catch (error) {
     console.error('Failed to load FRP status:', error)
   } finally {
-    loading.value = false
+    if (!background) loading.value = false
   }
 }
 
@@ -194,7 +212,8 @@ const loadLogs = async () => {
     })
     const data = await resp.json()
     if (data.success) {
-      logs.value = data.obj || []
+      // 提取日志消息部分
+      logs.value = (data.obj || []).map((l: any) => l.message)
     }
   } catch (error) {
     console.error('Failed to load FRP logs:', error)
@@ -205,7 +224,7 @@ const loadLogs = async () => {
 
 const getStatusColor = () => {
   if (!status.value) return 'grey'
-  return status.value.running ? 'success' : 'error'
+  return status.value.status === 'running' ? 'success' : 'error'
 }
 
 // FRP 操作
@@ -287,10 +306,27 @@ const restartFRP = async () => {
   }
 }
 
+// 确认删除
+const confirmDelete = async () => {
+  deleteLoading.value = true
+  try {
+    // 使用通用服务删除API，因为FRP是作为Service存储的
+    const success = await Data().save("services", "del", props.service.tag)
+    if (success) {
+      showDeleteConfirm.value = false
+    }
+  } catch (error) {
+    console.error('Failed to delete FRP:', error)
+    alert('Failed to delete FRP: ' + error)
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
 // 组件挂载时加载状态并设置定时刷新
 onMounted(() => {
   loadStatus()
-  statusInterval = setInterval(loadStatus, 5000)
+  statusInterval = setInterval(() => loadStatus(true), 5000)
 })
 
 // 组件卸载时清除定时器

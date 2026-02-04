@@ -87,9 +87,17 @@ const Data = defineStore('Data', {
     },
     // 保存FRP服务器配置
     async saveFrpServer (action: string, data: any): Promise<boolean> {
+      // 将前端的tag字段映射到后端的name字段
+      const frpData = {
+        ...data,
+        name: data.tag, // 后端期望name字段
+      }
+      // 删除tag字段，避免混淆
+      delete frpData.tag
+      
       let postData = {
         action: action,
-        data: JSON.stringify(data, null, 2)
+        data: JSON.stringify(frpData, null, 2)
       }
       const msg = await HttpUtils.post('api/save_frp_server', postData)
       if (msg.success) {
@@ -98,7 +106,8 @@ const Data = defineStore('Data', {
           duration: 5000,
           message: i18n.global.t('actions.' + action) + " FRP服务器"
         })
-        this.setNewData(msg.obj)
+        // 重新加载数据而不是使用返回的 null
+        await this.loadData()
       }
       return msg.success
     },

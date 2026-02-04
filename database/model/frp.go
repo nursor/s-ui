@@ -8,7 +8,7 @@ import (
 // FrpServer FRP服务器配置表
 type FrpServer struct {
 	Id   uint   `json:"id" form:"id" gorm:"primaryKey;autoIncrement"`
-	Name string `json:"name" form:"name" gorm:"uniqueIndex"`
+	Name string `json:"name" form:"name" gorm:"size:255;uniqueIndex"`
 	Type string `json:"type" form:"type" gorm:"index"` // "server" 或 "client"
 
 	// 进程管理
@@ -30,9 +30,9 @@ type FrpServer struct {
 	LogPath    string `json:"log_path" form:"log_path" gorm:"column:log_path"`
 
 	// 元数据
-	CreatedAt time.Time `json:"created_at" form:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" form:"updated_at"`
-	LastRunAt time.Time `json:"last_run_at" form:"last_run_at"`
+	CreatedAt time.Time  `json:"created_at" form:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" form:"updated_at"`
+	LastRunAt *time.Time `json:"last_run_at,omitempty" form:"last_run_at" gorm:"default:null"`
 
 	// 关联
 	Proxies []FrpProxy `json:"proxies,omitempty" form:"proxies" gorm:"foreignKey:ServerId"`
@@ -42,8 +42,7 @@ type FrpServer struct {
 type FrpProxy struct {
 	Id       uint   `json:"id" form:"id" gorm:"primaryKey;autoIncrement"`
 	ServerId uint   `json:"server_id" form:"server_id" gorm:"index"`
-
-	Name     string `json:"name" form:"name" gorm:"uniqueIndex"`
+	Name     string `json:"name" form:"name" gorm:"size:255;uniqueIndex"`
 	Type     string `json:"type" form:"type"` // tcp, udp, http, https, stcp, xtcp
 	Enable   bool   `json:"enable" form:"enable"`
 
@@ -57,9 +56,9 @@ type FrpProxy struct {
 	Options json.RawMessage `json:"options,omitempty" form:"options" gorm:"type:json"`
 
 	// 关联
-	Server   *FrpServer `json:"server,omitempty" form:"server" gorm:"foreignKey:ServerId"`
-	CreatedAt time.Time `json:"created_at" form:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" form:"updated_at"`
+	Server    *FrpServer `json:"server,omitempty" form:"server" gorm:"foreignKey:ServerId"`
+	CreatedAt time.Time  `json:"created_at" form:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" form:"updated_at"`
 }
 
 // FrpLog FRP日志表

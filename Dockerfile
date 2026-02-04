@@ -1,7 +1,7 @@
 # ============================================
 # 阶段1: 前端构建
 # ============================================
-FROM --platform=linux/amd64 node:20-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /frontend
 
@@ -26,15 +26,15 @@ RUN npm run build:vite && \
 # ============================================
 # 阶段2: 后端构建
 # ============================================
-FROM --platform=linux/amd64 golang:1.25-alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 
 WORKDIR /app
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
-ENV GOARCH=amd64
+ENV GOARCH=${TARGETARCH}
 
-# ���装构建依赖
+# 装构建依赖
 RUN apk update && apk add --no-cache \
     gcc \
     musl-dev \
@@ -51,22 +51,24 @@ ENV CC=gcc
 COPY go.mod go.sum ./
 RUN go mod download
 
-# 复制源码
+# 先从前端构建器复制构建产物到临时位置
+COPY --from=frontend-builder /frontend/dist /tmp/frontend-dist
+
+# 复制源码（但排除 web/html 目录，因为我们要用前端构建的）
 COPY . .
 
-# 从前端构建器复制构建产物到 web/html/
-COPY --from=frontend-builder /frontend/dist /app/web/html
-
-# 验证嵌入内容
-RUN ls -lah /app/web/html/ && \
+# 将前端构建产物移动到正确位置（在 go build 之前！）
+RUN mkdir -p /app/web/html && \
+    cp -r /tmp/frontend-dist/* /app/web/html/ && \
+    ls -lah /app/web/html/ && \
     test -f /app/web/html/index.html || (echo "错误: index.html 不存在" && exit 1)
 
-# 构建 Go 应用（会嵌入 web/html/）
+# 构建 Go 应用（现在 go:embed 可以正确嵌入 web/html/ 的内容）
 RUN go build -ldflags="-w -s" \
     -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" \
     -o sui main.go
 
-FROM --platform=linux/amd64 alpine:latest
+FROM alpine:latest
 LABEL org.opencontainers.image.authors="any@gmail.com"
 ENV TZ=Asia/Tehran
 ENV SUI_DB_TYPE=mysql
