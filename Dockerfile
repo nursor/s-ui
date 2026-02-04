@@ -33,8 +33,10 @@ ARG TARGETARCH
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
 ENV GOARCH=${TARGETARCH}
+ENV GOPROXY=https://goproxy.cn,direct
 
 # 装构建依赖
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk update && apk add --no-cache \
     gcc \
     musl-dev \
@@ -64,7 +66,7 @@ RUN mkdir -p /app/web/html && \
     test -f /app/web/html/index.html || (echo "错误: index.html 不存在" && exit 1)
 
 # 构建 Go 应用（现在 go:embed 可以正确嵌入 web/html/ 的内容）
-RUN go build -ldflags="-w -s" \
+RUN go build -v -ldflags="-w -s" \
     -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" \
     -o sui main.go
 
@@ -80,7 +82,7 @@ ENV SUI_DB_NAME=sui
 
 
 WORKDIR /app
-
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk add --no-cache --update ca-certificates tzdata bash nginx nginx-mod-stream certbot certbot-nginx openssl 2>/dev/null || \
     apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main nginx-mod-stream || \
     (echo "错误: 无法安装nginx-mod-stream模块" && exit 1)
