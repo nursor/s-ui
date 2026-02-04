@@ -29,10 +29,10 @@ RUN npm run build:vite && \
 FROM golang:1.25-alpine AS backend-builder
 
 WORKDIR /app
-ARG TARGETARCH
+
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
-ENV GOARCH=${TARGETARCH}
+
 ENV GOPROXY=https://goproxy.cn,direct
 
 # 装构建依赖
