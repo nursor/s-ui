@@ -33,8 +33,6 @@ WORKDIR /app
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
 
-ENV GOPROXY=https://goproxy.cn,direct
-
 # 装构建依赖
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 RUN apk update && apk add --no-cache \
@@ -51,7 +49,7 @@ ENV CC=gcc
 
 # Go模块依赖（利用缓存）
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download -x
 
 # 先从前端构建器复制构建产物到临时位置
 COPY --from=frontend-builder /frontend/dist /tmp/frontend-dist
