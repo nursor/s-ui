@@ -68,7 +68,6 @@ RUN go build -ldflags="-w -s" \
     -tags "with_quic,with_grpc,with_utls,with_acme,with_gvisor" \
     -o sui main.go
 
-
 FROM alpine:latest
 LABEL org.opencontainers.image.authors="any@gmail.com"
 ENV TZ=Asia/Tehran
@@ -82,8 +81,17 @@ ENV SUI_DB_NAME=sui
 
 WORKDIR /app
 
-RUN apk add --no-cache --update ca-certificates tzdata bash
+RUN apk add --no-cache --update ca-certificates tzdata bash nginx nginx-mod-stream certbot certbot-nginx openssl 2>/dev/null || \
+    apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main nginx-mod-stream || \
+    (echo "错误: 无法安装nginx-mod-stream模块" && exit 1)
+
+# Set up auto-renewal cron job (every day at 3am)
+RUN echo "0 3 * * * certbot renew --quiet --post-hook 'nginx -s reload'" >> /var/spool/cron/crontabs/root
+
+
 
 COPY --from=backend-builder /app/sui /app/
+COPY --from=backend-builder /app/nginx.conf /app/
+COPY --from=backend-builder /app/nginx-main.conf /etc/nginx/nginx.conf
 COPY entrypoint.sh /app/
 ENTRYPOINT [ "./entrypoint.sh" ]
